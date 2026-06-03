@@ -320,6 +320,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 const formData = new FormData();
                 formData.append('file', file);
+                formData.append('riwaya', recitation);
 
                 const response = await fetch(`${apiUrl}/align/${surahId}`, {
                     method: 'POST',
@@ -476,6 +477,23 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function handleMunajjamSuccess(result) {
+        // Check if words exist
+        const hasWords = result.data.some(d => d.words && d.words.length > 0);
+        
+        if (hasWords) {
+            let flatAlignments = [];
+            result.data.forEach(ayahData => {
+                if (ayahData.words) {
+                    ayahData.words.forEach(w => {
+                        flatAlignments.push({ word: w.word, start: w.start, end: w.end });
+                    });
+                }
+            });
+            originalAlignments = JSON.parse(JSON.stringify(flatAlignments));
+            handleAlignmentSuccess({ alignments: flatAlignments });
+            return;
+        }
+
         let newAlignments = [];
         const ayahsEl = Array.from(document.querySelectorAll('.quran-ayah'));
         
@@ -1012,8 +1030,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const colabCodes = {
         munajjam: [
-            `# الخلية الأولى: إعداد البيئة وتثبيت المكتبات\n# 1. تحميل المشروع من جديد\n!rm -rf munajjam\n!git clone https://github.com/Itqan-community/munajjam.git\n\n# 2. الدخول للمجلد المتداخل الذي يحتوي على ملفات التثبيت\n%cd /content/munajjam/munajjam\n\n# 3. التثبيت (تم إزالة localtunnel)\n!pip install "numpy<2"\n!pip install ".[faster-whisper]" fastapi uvicorn python-multipart`,
-            `# الخلية الثانية: إنشاء ملف الخادم (يجب أن يكون %%writefile في أول سطر بالخلية)\n%%writefile api.py\nfrom fastapi import FastAPI, UploadFile, File\nfrom fastapi.middleware.cors import CORSMiddleware\nfrom munajjam.transcription import WhisperTranscriber\nfrom munajjam.core import align\nfrom munajjam.data import load_surah_ayahs\nimport shutil\nimport os\n\napp = FastAPI()\n\napp.add_middleware(\n    CORSMiddleware,\n    allow_origins=["*"],\n    allow_credentials=True,\n    allow_methods=["*"],\n    allow_headers=["*"],\n)\n\n@app.post("/align/{surah_number}")\nasync def align_audio(surah_number: int, file: UploadFile = File(...)):\n    file_location = f"{surah_number}.mp3"\n    with open(file_location, "wb") as buffer:\n        shutil.copyfileobj(file.file, buffer)\n\n    with WhisperTranscriber() as transcriber:\n        # استخدام surah_id للتوافق مع الإصدار الأخير\n        segments = transcriber.transcribe(file_location, surah_id=surah_number)\n\n    ayahs = load_surah_ayahs(surah_number)\n    results = align(file_location, segments, ayahs)\n\n    response_data = []\n    for result in results:\n        response_data.append({\n            "ayah_number": result.ayah.ayah_number,\n            "start_time": result.start_time,\n            "end_time": result.end_time\n        })\n\n    os.remove(file_location)\n    return {"surah": surah_number, "data": response_data}`,
+            `# الخلية الأولى: إعداد البيئة وتثبيت المكتبات\n# 1. تحميل المشروع من جديد\n!rm -rf munajjam\n!git clone https://github.com/alinice1998/Munajjam.git\n\n# 2. الدخول للمجلد المتداخل الذي يحتوي على ملفات التثبيت\n%cd /content/Munajjam/munajjam\n\n# 3. التثبيت (تم إزالة localtunnel)\n!pip install "numpy<2"\n!pip install ".[faster-whisper]" fastapi uvicorn python-multipart`,
+            `# الخلية الثانية: إنشاء ملف الخادم (يجب أن يكون %%writefile في أول سطر بالخلية)\n%%writefile api.py\nfrom fastapi import FastAPI, UploadFile, File, Form\nfrom fastapi.middleware.cors import CORSMiddleware\nfrom munajjam.transcription.whisperFactory import WhisperFactory, WhisperBackend\nfrom munajjam.core import align\nfrom munajjam.data import load_surah_ayahs\nimport shutil\nimport os\n\napp = FastAPI()\n\napp.add_middleware(\n    CORSMiddleware,\n    allow_origins=["*"],\n    allow_credentials=True,\n    allow_methods=["*"],\n    allow_headers=["*"],\n)\n\n@app.post("/align/{surah_number}")\nasync def align_audio(surah_number: int, file: UploadFile = File(...), riwaya: str = Form("hafs")):\n    file_location = f"{surah_number}.mp3"\n    with open(file_location, "wb") as buffer:\n        shutil.copyfileobj(file.file, buffer)\n\n    # Use the new Whisperx Hybrid Engine\n    transcriber = WhisperFactory().create_whisper(backend=WhisperBackend.WHISPERX, model_name="large-v2")\n    segments = transcriber.transcribe(file_location, surah_id=surah_number)\n\n    ayahs = load_surah_ayahs(surah_number, riwaya=riwaya)\n    results = align(file_location, segments, ayahs, strategy="hybrid")\n\n    response_data = []\n    for result in results:\n        ayah_data = {\n            "ayah_number": result.ayah.ayah_number,\n            "start_time": result.start_time,\n            "end_time": result.end_time\n        }\n        if getattr(result, "words", None):\n            ayah_data["words"] = [{"word": w.word, "start": w.start, "end": w.end} for w in result.words]\n        response_data.append(ayah_data)\n\n    os.remove(file_location)\n    return {"surah": surah_number, "data": response_data}`,
             `# الخلية الثالثة: تشغيل الخادم والحصول على الرابط عبر Cloudflare\nimport subprocess, threading, time, re\n\n# تحميل أداة cloudflared\nsubprocess.run([\n    "wget", "-q",\n    "https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64",\n    "-O", "cloudflared"\n], check=True)\nsubprocess.run(["chmod", "+x", "cloudflared"], check=True)\n\n# تشغيل خادم uvicorn في الخلفية (تم تعديله ليعمل مع api:app)\nuvicorn_proc = subprocess.Popen(\n    ["uvicorn", "api:app", "--host", "0.0.0.0", "--port", "8000"],\n    stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True\n)\nprint("⏳ جاري تشغيل خادم Uvicorn (يرجى الانتظار 10 ثوانٍ)...")\ntime.sleep(10)  # مهلة لضمان بدء الخادم\n\n# تشغيل cloudflared والتقاط الرابط\ncf_proc = subprocess.Popen(\n    ["./cloudflared", "tunnel", "--url", "http://localhost:8000"],\n    stderr=subprocess.PIPE, text=True\n)\n\nprint("⏳ جاري الاتصال بـ Cloudflare Tunnel...")\nurl = None\nfor line in cf_proc.stderr:\n    match = re.search(r'https://[a-z0-9\\-]+\\.trycloudflare\\.com', line)\n    if match:\n        url = match.group(0)\n        print(f"\\n✅ الرابط العام جاهز:\\n🌐 {url}\\n")\n        print("📌 انسخ هذا الرابط واستخدمه في التطبيق الخاص بك")\n        print("⚠️  لا توجد كلمة مرور - فقط انسخ الرابط مباشرة")\n        break\n\n# إبقاء الخلية تعمل وعرض التحديثات لمنع توقف كولاب\nprint("\\n🔥 الخادم يعمل الآن. سيتم عرض التحديثات أدناه...\\n")\nfor line in uvicorn_proc.stdout:\n    print(line, end="")`
         ],
         hybrid: [
