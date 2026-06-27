@@ -13,6 +13,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const uploadZone = document.getElementById('upload-zone');
     const audioUpload = document.getElementById('audio-upload');
     const processBtn = document.getElementById('process-btn');
+    const syncFileBtn = document.getElementById('sync-file-btn');
+    const syncFileUpload = document.getElementById('sync-file-upload');
     const quranContent = document.getElementById('quran-content');
     const loadingOverlay = document.getElementById('loading-overlay');
     const loadingTitle = document.getElementById('loading-title');
@@ -23,6 +25,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const durationEl = document.getElementById('duration');
     const zoomInBtn = document.getElementById('zoom-in-btn');
     const zoomOutBtn = document.getElementById('zoom-out-btn');
+    const topPlayPauseBtn = document.getElementById('top-play-pause-btn');
     const wordActionMenu = document.getElementById('word-action-menu');
     const wamWordText = document.getElementById('wam-word-text');
     const wamClose = document.getElementById('wam-close');
@@ -108,9 +111,11 @@ document.addEventListener('DOMContentLoaded', () => {
         wavesurfer.on('ready', () => {
             durationEl.textContent = formatTime(wavesurfer.getDuration());
             audioPlayerContainer.classList.remove('hidden');
+            if (topPlayPauseBtn) topPlayPauseBtn.classList.remove('hidden');
         });
 
         playPauseBtn.onclick = () => wavesurfer.playPause();
+        if (topPlayPauseBtn) topPlayPauseBtn.onclick = () => wavesurfer.playPause();
         
         wavesurfer.on('play', () => { 
             updatePlayIcon(true);
@@ -139,10 +144,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function updatePlayIcon(isPlaying) {
         const icon = document.getElementById('play-icon');
+        const topIcon = document.getElementById('top-play-icon');
+        
         if (isPlaying) {
-            icon.setAttribute('data-lucide', 'pause');
+            if (icon) icon.setAttribute('data-lucide', 'pause');
+            if (topIcon) topIcon.setAttribute('data-lucide', 'pause');
         } else {
-            icon.setAttribute('data-lucide', 'play');
+            if (icon) icon.setAttribute('data-lucide', 'play');
+            if (topIcon) topIcon.setAttribute('data-lucide', 'play');
         }
         lucide.createIcons();
     }
@@ -198,6 +207,15 @@ document.addEventListener('DOMContentLoaded', () => {
             loadSurahContent(surahSelect.value, recitationSelect.value);
         }
     });
+
+    const waqfThresholdInput = document.getElementById('waqf-threshold');
+    if (waqfThresholdInput) {
+        waqfThresholdInput.addEventListener('change', () => {
+            if (alignments && alignments.length > 0) {
+                regroupByWaqf();
+            }
+        });
+    }
 
     async function loadSurahContent(surahId, recitation) {
         customReferenceText = null; // Reset custom text on surah change
@@ -314,7 +332,7 @@ document.addEventListener('DOMContentLoaded', () => {
         loadingOverlay.classList.remove('hidden');
 
         try {
-            if (method === 'munajjam') {
+            if (method === 'waqf_backend') {
                 loadingTitle.textContent = 'جاري المزامنة عبر منجم...';
                 loadingDesc.textContent = 'يتم الآن تحليل الآيات على الخادم السحابي...';
 
@@ -331,12 +349,22 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (!response.ok) throw new Error(`خطأ من الخادم: ${response.status}`);
                 const result = await response.json();
                 
-                // Deep copy alignments for reset functionality
-                if (result.data) {
-                    originalAlignments = JSON.parse(JSON.stringify(result.data));
+                if (result.status === 'success') {
+                    // In case it finishes immediately
+                    if (result.data) {
+                        originalAlignments = JSON.parse(JSON.stringify(result.data));
+                    }
+                    handleWaqf BackendSuccess(result);
+                } else if (result.status === 'queued' || result.status === 'processing') {
+                    // Start polling
+                    pollWaqf BackendStatus(result.job_id, apiUrl, surahId);
+                } else {
+                    // Fallback to old synchronous behavior if status is not present
+                    if (result.data) {
+                        originalAlignments = JSON.parse(JSON.stringify(result.data));
+                    }
+                    handleWaqf BackendSuccess(result);
                 }
-
-                handleMunajjamSuccess(result);
 
             } else {
                 // CTC or Whisper Cloud
@@ -399,6 +427,122 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     };
 
+    // --- File Sync Feature ---
+    if (syncFileBtn && syncFileUpload) {
+        syncFileBtn.onclick = () => {
+            if (!selectedFile || !surahSelect.value) {
+                alert('يرجى اختيار السورة ورفع الملف الصوتي أولاً');
+                return;
+            }
+            syncFileUpload.click();
+        };
+
+        syncFileUpload.onchange = (e) => {
+            const file = e.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                try {
+                    let json;
+                    if (file.name.toLowerCase().endsWith('.srt')) {
+                        // Parse SRT to JSON format
+                        const srtContent = e.target.result;
+                        const blocks = srtContent.trim().split(/\n\s*\n/);
+                        const alignments = [];
+                        
+                        function parseTime(timeStr) {
+                            const parts = timeStr.trim().split(/[:,]/);
+                            if (parts.length >= 4) {
+                                return parseInt(parts[0], 10) * 3600 + 
+                                       parseInt(parts[1], 10) * 60 + 
+                                       parseInt(parts[2], 10) + 
+                                       parseInt(parts[3], 10) / 1000;
+                            }
+                            return 0;
+                        }
+
+                        for (let block of blocks) {
+                            const lines = block.split('\n');
+                            if (lines.length >= 3) {
+                                const timeLine = lines[1];
+                                const times = timeLine.split(' --> ');
+                                if (times.length === 2) {
+                                    const start = parseTime(times[0]);
+                                    const end = parseTime(times[1]);
+                                    const text = lines.slice(2).join(' ').trim();
+                                    alignments.push({ start, end, text });
+                                }
+                            }
+                        }
+                        json = { alignments };
+                    } else {
+                        json = JSON.parse(e.target.result);
+                    }
+
+                    if (json.alignments) {
+                        const numWords = document.querySelectorAll('.quran-word').length;
+                        const numAyahs = document.querySelectorAll('.quran-ayah').length;
+                        
+                        // Heuristic: is it closer to number of ayahs or number of words?
+                        const isAyahLevel = Math.abs(json.alignments.length - numAyahs) < Math.abs(json.alignments.length - numWords);
+                        
+                        if (isAyahLevel) {
+                            let newAlignments = [];
+                            const ayahsEl = Array.from(document.querySelectorAll('.quran-ayah'));
+                            
+                            json.alignments.forEach((item, idx) => {
+                                if (ayahsEl[idx]) {
+                                    newAlignments.push({
+                                        start: item.start,
+                                        end: item.end,
+                                        element: ayahsEl[idx]
+                                    });
+                                }
+                            });
+                            
+                            originalAlignments = json.alignments.map((a, idx) => ({
+                                ayah_number: idx + 1,
+                                start_time: a.start,
+                                end_time: a.end
+                            }));
+                            
+                            alignments = newAlignments;
+                            if (wavesurfer) {
+                                document.getElementById('audio-player-container').classList.remove('hidden');
+                                try {
+                                    const playPromise = wavesurfer.play();
+                                    if (playPromise !== undefined) {
+                                        playPromise.catch(e => console.warn("Autoplay blocked", e));
+                                    }
+                                } catch(e) {
+                                    console.warn("Autoplay error", e);
+                                }
+                            }
+                            exportContainer.classList.remove('hidden');
+                        } else {
+                            const alignmentsData = json.alignments.map(a => ({
+                                word: a.word || a.text,
+                                start: a.start,
+                                end: a.end
+                            }));
+                            
+                            originalAlignments = JSON.parse(JSON.stringify(alignmentsData));
+                            handleAlignmentSuccess({ alignments: alignmentsData });
+                        }
+                    } else {
+                        alert('تنسيق الملف غير صالح');
+                    }
+                } catch (err) {
+                    console.error(err);
+                    alert('حدث خطأ أثناء قراءة الملف: ' + err.message);
+                }
+            };
+            reader.readAsText(file);
+            syncFileUpload.value = ''; // Reset input
+        };
+    }
+
     function handleAlignmentSuccess(result) {
         const wordElements = Array.from(document.querySelectorAll('.quran-word'));
         
@@ -442,6 +586,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 newAlignments.push({
                     start: result.alignments[mappedIdx].start,
                     end: result.alignments[mappedIdx].end,
+                    original_start: result.alignments[mappedIdx].original_start,
+                    original_end: result.alignments[mappedIdx].original_end,
                     element: wordElements[k]
                 });
             }
@@ -463,6 +609,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 newAlignments.push({
                     start: prevEnd,
                     end: Math.max(prevEnd, nextStart),
+                    original_start: prevEnd,
+                    original_end: Math.max(prevEnd, nextStart),
                     element: wordElements[k]
                 });
             }
@@ -471,12 +619,25 @@ document.addEventListener('DOMContentLoaded', () => {
         newAlignments.sort((a, b) => parseInt(a.element.dataset.absoluteIndex) - parseInt(b.element.dataset.absoluteIndex));
         alignments = newAlignments;
 
-        if (wavesurfer) wavesurfer.play();
+        if (wavesurfer) {
+            document.getElementById('audio-player-container').classList.remove('hidden');
+            try {
+                const playPromise = wavesurfer.play();
+                if (playPromise !== undefined) {
+                    playPromise.catch(e => console.warn("Autoplay blocked", e));
+                }
+            } catch(e) {
+                console.warn("Autoplay error", e);
+            }
+        }
         loadingOverlay.classList.add('hidden');
         exportContainer.classList.remove('hidden');
+        
+        // Group by Waqf instead of Ayahs
+        regroupByWaqf();
     }
 
-    function handleMunajjamSuccess(result) {
+    function handleWaqf BackendSuccess(result) {
         // Check if words exist
         const hasWords = result.data.some(d => d.words && d.words.length > 0);
         
@@ -485,7 +646,7 @@ document.addEventListener('DOMContentLoaded', () => {
             result.data.forEach(ayahData => {
                 if (ayahData.words) {
                     ayahData.words.forEach(w => {
-                        flatAlignments.push({ word: w.word, start: w.start, end: w.end });
+                        flatAlignments.push({ word: w.word, start: w.start, end: w.end, original_start: w.original_start, original_end: w.original_end });
                     });
                 }
             });
@@ -510,7 +671,17 @@ document.addEventListener('DOMContentLoaded', () => {
         });
 
         alignments = newAlignments;
-        if (wavesurfer) wavesurfer.play();
+        if (wavesurfer) {
+            document.getElementById('audio-player-container').classList.remove('hidden');
+            try {
+                const playPromise = wavesurfer.play();
+                if (playPromise !== undefined) {
+                    playPromise.catch(e => console.warn("Autoplay blocked", e));
+                }
+            } catch(e) {
+                console.warn("Autoplay error", e);
+            }
+        }
         loadingOverlay.classList.add('hidden');
         exportContainer.classList.remove('hidden');
     }
@@ -541,6 +712,84 @@ document.addEventListener('DOMContentLoaded', () => {
             console.warn('Polling error (retrying...):', error);
             setTimeout(() => pollCloudStatus(jobId, apiUrl, startTime), 5000);
         }
+    }
+
+    async function pollWaqf BackendStatus(jobId, apiUrl, surahId, startTime = Date.now()) {
+        try {
+            const response = await fetch(`${apiUrl}/align/status/${jobId}`, {
+                headers: { 'Bypass-Tunnel-Reminder': 'true' }
+            });
+            const result = await response.json();
+            
+            const elapsed = Math.round((Date.now() - startTime) / 1000);
+            
+            if (result.status === 'success') {
+                // Waqf Backend returns the result in "data" instead of "alignments"
+                if (result.data) {
+                    originalAlignments = JSON.parse(JSON.stringify(result.data));
+                }
+                handleWaqf BackendSuccess(result);
+            } else if (result.status === 'error') {
+                alert('خطأ في معالجة منجم: ' + result.message);
+                loadingOverlay.classList.add('hidden');
+            } else {
+                loadingTitle.textContent = 'جاري المزامنة عبر منجم...';
+                loadingDesc.textContent = `المهمة قيد التنفيذ، يرجى الانتظار... (${elapsed} ثانية)`;
+                setTimeout(() => pollWaqf BackendStatus(jobId, apiUrl, surahId, startTime), 3000);
+            }
+        } catch (error) {
+            console.warn('Polling error (retrying...):', error);
+            setTimeout(() => pollWaqf BackendStatus(jobId, apiUrl, surahId, startTime), 5000);
+        }
+    }
+
+    function regroupByWaqf() {
+        const thresholdInput = document.getElementById('waqf-threshold');
+        const threshold = thresholdInput ? parseFloat(thresholdInput.value) || 0.5 : 0.5;
+        
+        const quranContent = document.getElementById('quran-content');
+        quranContent.innerHTML = '';
+        
+        if (!alignments || alignments.length === 0) return;
+        
+        let currentWaqfSpan = document.createElement('span');
+        currentWaqfSpan.className = 'waqf-segment block mb-10 animate-fade-in text-center bg-white/5 p-4 rounded-2xl border border-white/5';
+        
+        for (let i = 0; i < alignments.length; i++) {
+            const align = alignments[i];
+            const el = align.element;
+            
+            currentWaqfSpan.appendChild(el);
+            currentWaqfSpan.appendChild(document.createTextNode(' '));
+            
+            // Check if this is the last word of the ayah
+            const currentAyahId = el.dataset.wordIndex.split('-')[0];
+            const nextAlign = alignments[i+1];
+            const nextAyahId = nextAlign ? nextAlign.element.dataset.wordIndex.split('-')[0] : null;
+            
+            if (currentAyahId !== nextAyahId) {
+                const ayahNum = document.createElement('span');
+                ayahNum.className = 'text-emerald-500/60 font-Tajawal text-xl align-middle mx-2 select-none';
+                ayahNum.innerHTML = `&nbsp;﴿${currentAyahId}﴾&nbsp;`;
+                currentWaqfSpan.appendChild(ayahNum);
+                currentWaqfSpan.appendChild(document.createTextNode(' '));
+            }
+            
+            // Check Waqf gap
+            if (nextAlign) {
+                const start2 = nextAlign.original_start ?? nextAlign.start;
+                const end1 = align.original_end ?? align.end;
+                const gap = start2 - end1;
+                
+                if (gap >= threshold) {
+                    quranContent.appendChild(currentWaqfSpan);
+                    currentWaqfSpan = document.createElement('span');
+                    currentWaqfSpan.className = 'waqf-segment block mb-10 animate-fade-in text-center bg-white/5 p-4 rounded-2xl border border-white/5';
+                }
+            }
+        }
+        
+        quranContent.appendChild(currentWaqfSpan);
     }
 
     // --- Synchronization ---
@@ -665,7 +914,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const ayahSpan = currentSelectedWordElement.closest('.quran-ayah');
         if (!ayahSpan) return null;
         
-        // Handle Munajjam mode where elements ARE ayahs
+        // Handle Waqf Backend mode where elements ARE ayahs
         const isAyahMode = alignments[0]?.element?.classList.contains('quran-ayah');
         if (isAyahMode) return alignments.find(a => a.element === ayahSpan);
 
@@ -767,7 +1016,7 @@ document.addEventListener('DOMContentLoaded', () => {
             if (editorCurrentIndex === -1 || !originalAlignments.length) return;
             
             // For CTC/Whisper, originalAlignments is an array of objects {start, end, word}
-            // For Munajjam, originalAlignments is an array of objects {ayah_number, start_time, end_time}
+            // For Waqf Backend, originalAlignments is an array of objects {ayah_number, start_time, end_time}
             
             let originalStart = 0;
             let originalEnd = 0;
@@ -916,10 +1165,28 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function getExportData() {
+        const segments = document.querySelectorAll('.waqf-segment');
+        if (segments.length > 0) {
+            return Array.from(segments).map(seg => {
+                const words = Array.from(seg.querySelectorAll('.quran-word'));
+                const text = seg.textContent.replace(/\s+/g, ' ').trim();
+                let start = 999999, end = 0;
+                words.forEach(w => {
+                    const align = alignments.find(a => a.element === w);
+                    if (align) {
+                        if (align.start < start) start = align.start;
+                        if (align.end > end) end = align.end;
+                    }
+                });
+                if (start === 999999) start = 0;
+                return { start, end, text };
+            }).filter(item => item.end > 0);
+        }
+        
         return alignments.map(a => {
             let text = '';
             if (a.element.classList.contains('quran-ayah')) {
-                // Munajjam mode: element is an ayah. Get all word texts inside.
+                // Waqf Backend mode: element is an ayah. Get all word texts inside.
                 const words = a.element.querySelectorAll('.quran-word');
                 text = Array.from(words).map(w => w.textContent).join(' ');
             } else {
@@ -1029,16 +1296,15 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     const colabCodes = {
-        munajjam: [
-            `# الخلية الأولى: إعداد البيئة وتثبيت المكتبات\n# 1. تحميل المشروع من جديد\n!rm -rf munajjam\n!git clone https://github.com/alinice1998/Munajjam.git\n\n# 2. الدخول للمجلد المتداخل الذي يحتوي على ملفات التثبيت\n%cd /content/Munajjam/munajjam\n\n# 3. التثبيت (تم إزالة localtunnel)\n!pip install "numpy<2"\n!pip install ".[faster-whisper]" fastapi uvicorn python-multipart`,
-            `# الخلية الثانية: إنشاء ملف الخادم (يجب أن يكون %%writefile في أول سطر بالخلية)\n%%writefile api.py\nfrom fastapi import FastAPI, UploadFile, File, Form\nfrom fastapi.middleware.cors import CORSMiddleware\nfrom munajjam.transcription.whisperFactory import WhisperFactory, WhisperBackend\nfrom munajjam.core import align\nfrom munajjam.data import load_surah_ayahs\nimport shutil\nimport os\n\napp = FastAPI()\n\napp.add_middleware(\n    CORSMiddleware,\n    allow_origins=["*"],\n    allow_credentials=True,\n    allow_methods=["*"],\n    allow_headers=["*"],\n)\n\n@app.post("/align/{surah_number}")\nasync def align_audio(surah_number: int, file: UploadFile = File(...), riwaya: str = Form("hafs")):\n    file_location = f"{surah_number}.mp3"\n    with open(file_location, "wb") as buffer:\n        shutil.copyfileobj(file.file, buffer)\n\n    # Use the new Whisperx Hybrid Engine\n    transcriber = WhisperFactory().create_whisper(backend=WhisperBackend.WHISPERX, model_name="large-v2")\n    segments = transcriber.transcribe(file_location, surah_id=surah_number)\n\n    ayahs = load_surah_ayahs(surah_number, riwaya=riwaya)\n    results = align(file_location, segments, ayahs, strategy="hybrid")\n\n    response_data = []\n    for result in results:\n        ayah_data = {\n            "ayah_number": result.ayah.ayah_number,\n            "start_time": result.start_time,\n            "end_time": result.end_time\n        }\n        if getattr(result, "words", None):\n            ayah_data["words"] = [{"word": w.word, "start": w.start, "end": w.end} for w in result.words]\n        response_data.append(ayah_data)\n\n    os.remove(file_location)\n    return {"surah": surah_number, "data": response_data}`,
-            `# الخلية الثالثة: تشغيل الخادم والحصول على الرابط عبر Cloudflare\nimport subprocess, threading, time, re\n\n# تحميل أداة cloudflared\nsubprocess.run([\n    "wget", "-q",\n    "https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64",\n    "-O", "cloudflared"\n], check=True)\nsubprocess.run(["chmod", "+x", "cloudflared"], check=True)\n\n# تشغيل خادم uvicorn في الخلفية (تم تعديله ليعمل مع api:app)\nuvicorn_proc = subprocess.Popen(\n    ["uvicorn", "api:app", "--host", "0.0.0.0", "--port", "8000"],\n    stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True\n)\nprint("⏳ جاري تشغيل خادم Uvicorn (يرجى الانتظار 10 ثوانٍ)...")\ntime.sleep(10)  # مهلة لضمان بدء الخادم\n\n# تشغيل cloudflared والتقاط الرابط\ncf_proc = subprocess.Popen(\n    ["./cloudflared", "tunnel", "--url", "http://localhost:8000"],\n    stderr=subprocess.PIPE, text=True\n)\n\nprint("⏳ جاري الاتصال بـ Cloudflare Tunnel...")\nurl = None\nfor line in cf_proc.stderr:\n    match = re.search(r'https://[a-z0-9\\-]+\\.trycloudflare\\.com', line)\n    if match:\n        url = match.group(0)\n        print(f"\\n✅ الرابط العام جاهز:\\n🌐 {url}\\n")\n        print("📌 انسخ هذا الرابط واستخدمه في التطبيق الخاص بك")\n        print("⚠️  لا توجد كلمة مرور - فقط انسخ الرابط مباشرة")\n        break\n\n# إبقاء الخلية تعمل وعرض التحديثات لمنع توقف كولاب\nprint("\\n🔥 الخادم يعمل الآن. سيتم عرض التحديثات أدناه...\\n")\nfor line in uvicorn_proc.stdout:\n    print(line, end="")`
+        waqf_backend: [
+            `# الخلية الأولى: إعداد البيئة وتثبيت المكتبات\n# 1. تحميل المشروع من جديد\n!rm -rf waqf_backend\n!git clone https://github.com/alinice1998/waqf_backend.git\n\n# 2. الدخول للمجلد المتداخل الذي يحتوي على ملفات التثبيت\n%cd /content/waqf_backend/waqf_backend\n\n# 3. التثبيت\n!apt-get install -y ffmpeg\n!pip uninstall -y numpy ctc-segmentation\n!pip install git+https://github.com/m-bain/whisperx.git\n!pip install -e .\n%cd /content/waqf_backend\n!pip install -r server/requirements.txt\n!pip install "numpy<2"\n!pip install --no-cache-dir rapidfuzz ctc-segmentation`,
+            `# الخلية الثانية: تشغيل الخادم والحصول على الرابط عبر Cloudflare\nimport subprocess, threading, time, re, os\n\nos.chdir("/content/waqf_backend")\n\n# تحميل أداة cloudflared\nif not os.path.exists("cloudflared"):\n    subprocess.run([\n        "curl", "-sL",\n        "https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64",\n        "-o", "cloudflared"\n    ], check=True)\n    subprocess.run(["chmod", "+x", "cloudflared"], check=True)\n\n# تشغيل خادم uvicorn في الخلفية (يعمل على server/app.py)\nuvicorn_proc = subprocess.Popen(\n    ["uvicorn", "server.app:app", "--host", "0.0.0.0", "--port", "8000"],\n    stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True\n)\nprint("⏳ جاري تشغيل خادم Uvicorn (يرجى الانتظار 10 ثوانٍ)...")\ntime.sleep(10)  # مهلة لضمان بدء الخادم\n\n# تشغيل cloudflared والتقاط الرابط\ncf_proc = subprocess.Popen(\n    ["./cloudflared", "tunnel", "--url", "http://localhost:8000"],\n    stderr=subprocess.PIPE, text=True\n)\n\nprint("⏳ جاري الاتصال بـ Cloudflare Tunnel...")\nurl = None\nfor line in cf_proc.stderr:\n    match = re.search(r'https://[a-z0-9\\-]+\\.trycloudflare\\.com', line)\n    if match:\n        url = match.group(0)\n        print(f"\\n✅ الرابط العام جاهز:\\n🌐 {url}\\n")\n        print("📌 انسخ هذا الرابط واستخدمه في التطبيق الخاص بك")\n        print("⚠️  لا توجد كلمة مرور - فقط انسخ الرابط مباشرة")\n        break\n\n# إبقاء الخلية تعمل وعرض التحديثات لمنع توقف كولاب\nprint("\\n🔥 الخادم يعمل الآن. سيتم عرض التحديثات أدناه...\\n")\nfor line in uvicorn_proc.stdout:\n    print(line, end="")`
         ],
         hybrid: [
-            `# 1. إعداد المشروع وتشغيل خادم المزامنة الهجينة (Hybrid)\n!rm -rf colabwis\n!git clone https://github.com/alinice1998/colabwis.git\n%cd colabwis\n\n!apt-get install -y ffmpeg\n!pip uninstall -y numpy ctc-segmentation\n!pip install git+https://github.com/m-bain/whisperx.git\n!pip install -r requirements.txt\n!pip install "numpy<2"\n!pip install --no-cache-dir rapidfuzz ctc-segmentation\n!python model_downloader.py\n\nimport subprocess, threading, time, re\n\n# تحميل cloudflared\nsubprocess.run(["wget", "-q", "https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64", "-O", "cloudflared"], check=True)\nsubprocess.run(["chmod", "+x", "cloudflared"], check=True)\n\n# تشغيل الخادم\nuvicorn_proc = subprocess.Popen(["uvicorn", "colab_server:app", "--host", "0.0.0.0", "--port", "8000"], stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)\nprint("⏳ جاري تشغيل الخادم (قد يستغرق تحميل النماذج 15-20 ثانية)...")\ntime.sleep(15)\n\n# تشغيل النفق والتقاط الرابط\ncf_proc = subprocess.Popen(["./cloudflared", "tunnel", "--url", "http://localhost:8000"], stderr=subprocess.PIPE, text=True)\n\nfor line in cf_proc.stderr:\n    match = re.search(r'https://[a-z0-9\\-]+\\.trycloudflare\\.com', line)\n    if match:\n        print(f"\\n✅ الرابط العام جاهز:\\n🌐 {match.group(0)}\\n")\n        break\n\nfor line in uvicorn_proc.stdout: print(line, end="")`
+            `# 1. إعداد المشروع وتشغيل خادم المزامنة الهجينة (Hybrid)\n!rm -rf colabwis\n!git clone https://github.com/alinice1998/colabwis.git\n%cd colabwis\n\n!apt-get install -y ffmpeg\n!pip uninstall -y numpy ctc-segmentation\n!pip install git+https://github.com/m-bain/whisperx.git\n!pip install -r requirements.txt\n!pip install "numpy<2"\n!pip install --no-cache-dir rapidfuzz ctc-segmentation\n!python model_downloader.py\n\nimport subprocess, threading, time, re, os\n\n# تحميل cloudflared\nif not os.path.exists("cloudflared"):\n    subprocess.run(["curl", "-sL", "https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64", "-o", "cloudflared"], check=True)\n    subprocess.run(["chmod", "+x", "cloudflared"], check=True)\n\n# تشغيل الخادم\nuvicorn_proc = subprocess.Popen(["uvicorn", "colab_server:app", "--host", "0.0.0.0", "--port", "8000"], stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)\nprint("⏳ جاري تشغيل الخادم (قد يستغرق تحميل النماذج 15-20 ثانية)...")\ntime.sleep(15)\n\n# تشغيل النفق والتقاط الرابط\ncf_proc = subprocess.Popen(["./cloudflared", "tunnel", "--url", "http://localhost:8000"], stderr=subprocess.PIPE, text=True)\n\nfor line in cf_proc.stderr:\n    match = re.search(r'https://[a-z0-9\\-]+\\.trycloudflare\\.com', line)\n    if match:\n        print(f"\\n✅ الرابط العام جاهز:\\n🌐 {match.group(0)}\\n")\n        break\n\nfor line in uvicorn_proc.stdout: print(line, end="")`
         ],
         ctc_cloud: [
-            `# 1. إعداد المشروع وتشغيل خادم CTC\n!rm -rf colabwis\n!git clone https://github.com/alinice1998/colabwis.git\n%cd colabwis\n\n!apt-get install -y ffmpeg\n!pip uninstall -y numpy ctc-segmentation\n!pip install "numpy<2"\n!pip install rapidfuzz ctc-segmentation\n!pip install -r requirements.txt\n!pip install git+https://github.com/m-bain/whisperx.git\n!python model_downloader.py\n\nimport subprocess, threading, time, re\n\n# تحميل cloudflared\nsubprocess.run(["wget", "-q", "https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64", "-O", "cloudflared"], check=True)\nsubprocess.run(["chmod", "+x", "cloudflared"], check=True)\n\n# تشغيل الخادم\nuvicorn_proc = subprocess.Popen(["uvicorn", "colab_server:app", "--host", "0.0.0.0", "--port", "8000"], stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)\nprint("⏳ جاري تشغيل الخادم...")\ntime.sleep(15)\n\n# تشغيل النفق\ncf_proc = subprocess.Popen(["./cloudflared", "tunnel", "--url", "http://localhost:8000"], stderr=subprocess.PIPE, text=True)\n\nfor line in cf_proc.stderr:\n    match = re.search(r'https://[a-z0-9\\-]+\\.trycloudflare\\.com', line)\n    if match:\n        print(f"\\n✅ الرابط العام جاهز:\\n🌐 {match.group(0)}\\n")\n        break\n\nfor line in uvicorn_proc.stdout: print(line, end="")`
+            `# 1. إعداد المشروع وتشغيل خادم CTC\n!rm -rf colabwis\n!git clone https://github.com/alinice1998/colabwis.git\n%cd colabwis\n\n!apt-get install -y ffmpeg\n!pip uninstall -y numpy ctc-segmentation\n!pip install "numpy<2"\n!pip install rapidfuzz ctc-segmentation\n!pip install -r requirements.txt\n!pip install git+https://github.com/m-bain/whisperx.git\n!python model_downloader.py\n\nimport subprocess, threading, time, re, os\n\n# تحميل cloudflared\nif not os.path.exists("cloudflared"):\n    subprocess.run(["curl", "-sL", "https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64", "-o", "cloudflared"], check=True)\n    subprocess.run(["chmod", "+x", "cloudflared"], check=True)\n\n# تشغيل الخادم\nuvicorn_proc = subprocess.Popen(["uvicorn", "colab_server:app", "--host", "0.0.0.0", "--port", "8000"], stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)\nprint("⏳ جاري تشغيل الخادم...")\ntime.sleep(15)\n\n# تشغيل النفق\ncf_proc = subprocess.Popen(["./cloudflared", "tunnel", "--url", "http://localhost:8000"], stderr=subprocess.PIPE, text=True)\n\nfor line in cf_proc.stderr:\n    match = re.search(r'https://[a-z0-9\\-]+\\.trycloudflare\\.com', line)\n    if match:\n        print(f"\\n✅ الرابط العام جاهز:\\n🌐 {match.group(0)}\\n")\n        break\n\nfor line in uvicorn_proc.stdout: print(line, end="")`
         ],
         whisperx: []
     };

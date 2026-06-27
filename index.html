@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ميقات - مزامنة التلاوات القرآنية (النسخة السحابية)</title>
+    <title>Waqf Frontend - تقسيم التلاوات القرآنية بوقفات النفس</title>
 
     <!-- Fonts -->
     <link
@@ -83,19 +83,19 @@
             <div class="container mx-auto flex justify-between items-center">
                 <div class="flex items-center gap-4">
                     <div
-                        class="w-12 h-12 bg-emerald-500 rounded-2xl flex items-center justify-center shadow-lg shadow-emerald-500/40 transform -rotate-3">
+                        class="w-12 h-12 bg-amber-500 rounded-2xl flex items-center justify-center shadow-lg shadow-amber-500/40 transform -rotate-3">
                         <i data-lucide="clock" class="text-white w-6 h-6"></i>
                     </div>
                     <div>
                         <h1 class="text-2xl font-bold tracking-tight text-white flex items-center gap-2">
-                            ميقات
+                            وقف
                         </h1>
-                        <p class="text-[10px] text-emerald-400/70 tracking-widest uppercase">منصة المزامنة الصوتية</p>
+                        <p class="text-[10px] text-amber-400/70 tracking-widest uppercase">منصة التقسيم بالوقفات</p>
                     </div>
                 </div>
                 <nav class="hidden md:flex items-center gap-8 text-sm font-medium text-slate-400">
                     <button id="how-it-works-btn"
-                        class="hover:text-emerald-400 transition-colors flex items-center gap-2 bg-emerald-500/10 px-4 py-2 rounded-xl border border-emerald-500/20">
+                        class="hover:text-amber-400 transition-colors flex items-center gap-2 bg-amber-500/10 px-4 py-2 rounded-xl border border-amber-500/20">
                         <i data-lucide="help-circle" class="w-4 h-4"></i>
                         كيف يعمل؟
                     </button>
@@ -112,7 +112,7 @@
                     <!-- Configuration Card -->
                     <div class="glass p-6 space-y-6">
                         <div class="flex items-center gap-3 border-b border-white/5 pb-4">
-                            <i data-lucide="sliders" class="text-emerald-500 w-5 h-5"></i>
+                            <i data-lucide="sliders" class="text-amber-500 w-5 h-5"></i>
                             <h2 class="text-lg font-semibold">إعدادات المزامنة</h2>
                         </div>
 
@@ -123,7 +123,7 @@
                                     <label
                                         class="text-[11px] font-bold text-slate-400 uppercase tracking-widest">الرواية</label>
                                     <select id="recitation-select"
-                                        class="w-full bg-slate-950/50 border border-white/10 rounded-xl p-3 text-sm focus:ring-2 focus:ring-emerald-500/50 outline-none cursor-pointer">
+                                        class="w-full bg-slate-950/50 border border-white/10 rounded-xl p-3 text-sm focus:ring-2 focus:ring-amber-500/50 outline-none cursor-pointer">
                                         <option value="hafsh">حفص عن عاصم</option>
                                         <option value="warsh">ورش عن نافع</option>
                                     </select>
@@ -134,31 +134,28 @@
                                         class="text-[11px] font-bold text-slate-400 uppercase tracking-widest">خوارزمية
                                         المزامنة</label>
                                     <select id="method-select"
-                                        class="w-full bg-slate-950/50 border border-white/10 rounded-xl p-3 text-sm focus:ring-2 focus:ring-emerald-500/50 outline-none cursor-pointer">
-                                        <option value="hybrid" selected>WhisperX + CTC</option>
-                                        <option value="munajjam">مكتبة مُنَجِّم</option>
-                                        <option value="ctc_cloud">المزامنة القسرية CTC</option>
-                                        <option value="whisperx">مزامنة WhisperX</option>
+                                        class="w-full bg-slate-950/50 border border-white/10 rounded-xl p-3 text-sm focus:ring-2 focus:ring-amber-500/50 outline-none cursor-pointer">
+                                        <option value="munajjam" selected>مكتبة مُنَجِّم</option>
                                     </select>
                                 </div>
                             </div>
 
                             <!-- Google Colab Code Button -->
                             <button id="show-colab-code-btn"
-                                class="w-full bg-slate-950/40 hover:bg-slate-900 border border-emerald-500/20 hover:border-emerald-500/50 rounded-xl p-4 flex items-center justify-between group transition-all">
+                                class="w-full bg-slate-950/40 hover:bg-slate-900 border border-amber-500/20 hover:border-amber-500/50 rounded-xl p-4 flex items-center justify-between group transition-all">
                                 <div class="flex items-center gap-3">
                                     <div
-                                        class="w-8 h-8 rounded-full bg-emerald-500/10 flex items-center justify-center text-emerald-400 group-hover:scale-110 transition-transform">
+                                        class="w-8 h-8 rounded-full bg-amber-500/10 flex items-center justify-center text-amber-400 group-hover:scale-110 transition-transform">
                                         <i data-lucide="terminal" class="w-4 h-4"></i>
                                     </div>
                                     <div class="text-right">
-                                        <h3 class="text-xs font-bold uppercase tracking-widest text-emerald-400">أكواد
+                                        <h3 class="text-xs font-bold uppercase tracking-widest text-amber-400">أكواد
                                             التشغيل (Colab)</h3>
                                         <p class="text-[10px] text-slate-500 mt-0.5">عرض ونسخ الأكواد لتشغيل الخادم</p>
                                     </div>
                                 </div>
                                 <i data-lucide="chevron-left"
-                                    class="w-4 h-4 text-slate-500 group-hover:text-emerald-400 transition-colors"></i>
+                                    class="w-4 h-4 text-slate-500 group-hover:text-amber-400 transition-colors"></i>
                             </button>
 
                             <!-- Colab URL -->
@@ -167,7 +164,7 @@
                                     كولاب</label>
                                 <div class="relative">
                                     <input type="text" id="api-url"
-                                        class="w-full bg-slate-950/50 border border-white/10 rounded-xl py-3 pl-10 pr-4 focus:ring-2 focus:ring-emerald-500/50 outline-none transition-all text-left"
+                                        class="w-full bg-slate-950/50 border border-white/10 rounded-xl py-3 pl-10 pr-4 focus:ring-2 focus:ring-amber-500/50 outline-none transition-all text-left"
                                         dir="ltr" placeholder="https://....trycloudflare.com">
                                     <i data-lucide="link"
                                         class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500"></i>
@@ -181,26 +178,35 @@
                                 <label
                                     class="text-[11px] font-bold text-slate-400 uppercase tracking-widest">السورة</label>
                                 <select id="surah-select"
-                                    class="w-full bg-slate-950/50 border border-white/10 rounded-xl p-3 text-sm focus:ring-2 focus:ring-emerald-500/50 outline-none cursor-pointer">
+                                    class="w-full bg-slate-950/50 border border-white/10 rounded-xl p-3 text-sm focus:ring-2 focus:ring-amber-500/50 outline-none cursor-pointer">
                                     <option value="">جاري التحميل...</option>
                                 </select>
+                            </div>
+
+                            <!-- Waqf Threshold -->
+                            <div class="space-y-2">
+                                <label
+                                    class="text-[11px] font-bold text-slate-400 uppercase tracking-widest">مدة الوقف (بالثواني)</label>
+                                <input type="number" id="waqf-threshold" step="0.1" value="0.3"
+                                    class="w-full bg-slate-950/50 border border-white/10 rounded-xl p-3 focus:ring-2 focus:ring-amber-500/50 outline-none transition-all"
+                                    placeholder="مثال: 0.3">
                             </div>
 
                             <div id="ayah-container" class="hidden space-y-2">
                                 <label class="text-[11px] font-bold text-slate-400 uppercase tracking-widest">الآية
                                     (اختياري)</label>
                                 <input type="number" id="ayah-id"
-                                    class="w-full bg-slate-950/50 border border-white/10 rounded-xl p-3 focus:ring-2 focus:ring-emerald-500/50 outline-none transition-all"
+                                    class="w-full bg-slate-950/50 border border-white/10 rounded-xl p-3 focus:ring-2 focus:ring-amber-500/50 outline-none transition-all"
                                     placeholder="رقم الآية...">
                             </div>
 
                             <!-- Upload Zone -->
                             <div class="pt-4">
                                 <div id="upload-zone"
-                                    class="border-2 border-dashed border-white/10 hover:border-emerald-500/50 rounded-2xl p-8 text-center transition-all cursor-pointer bg-white/5 hover:bg-emerald-500/5 group">
+                                    class="border-2 border-dashed border-white/10 hover:border-amber-500/50 rounded-2xl p-8 text-center transition-all cursor-pointer bg-white/5 hover:bg-amber-500/5 group">
                                     <div
-                                        class="bg-emerald-500/10 w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-3 group-hover:scale-110 transition-transform">
-                                        <i data-lucide="music" class="text-emerald-500 w-6 h-6"></i>
+                                        class="bg-amber-500/10 w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-3 group-hover:scale-110 transition-transform">
+                                        <i data-lucide="music" class="text-amber-500 w-6 h-6"></i>
                                     </div>
                                     <p class="text-sm font-medium text-slate-300">ارفع ملف التلاوة الصوتي</p>
                                     <p class="text-[10px] text-slate-500 mt-1 uppercase tracking-tighter">MP3, WAV, M4A
@@ -211,16 +217,22 @@
 
                             <div class="grid grid-cols-2 gap-3 pt-4">
                                 <button id="edit-text-btn"
-                                    class="bg-white/5 hover:bg-emerald-500/10 text-slate-300 py-4 rounded-xl flex items-center justify-center gap-2 border border-white/5 hover:border-emerald-500/30 transition-all font-medium">
-                                    <i data-lucide="edit-3" class="w-5 h-5 text-emerald-500"></i>
+                                    class="bg-white/5 hover:bg-amber-500/10 text-slate-300 py-3 rounded-xl flex items-center justify-center gap-2 border border-white/5 hover:border-amber-500/30 transition-all font-medium">
+                                    <i data-lucide="edit-3" class="w-5 h-5 text-amber-500"></i>
                                     تعديل النص
                                 </button>
+                                <button id="sync-file-btn"
+                                    class="bg-white/5 hover:bg-amber-500/10 text-slate-300 py-3 rounded-xl flex items-center justify-center gap-2 border border-white/5 hover:border-amber-500/30 transition-all font-medium">
+                                    <i data-lucide="file-json" class="w-5 h-5 text-amber-500"></i>
+                                    المزامنة بملف
+                                </button>
                                 <button id="process-btn"
-                                    class="btn-primary py-4 rounded-xl flex items-center justify-center gap-2">
+                                    class="col-span-2 btn-primary py-4 rounded-xl flex items-center justify-center gap-2">
                                     <i data-lucide="zap" class="w-5 h-5"></i>
                                     بدء المزامنة
                                 </button>
                             </div>
+                            <input type="file" id="sync-file-upload" class="hidden" accept=".json,.srt">
                         </div>
                     </div>
 
@@ -229,7 +241,7 @@
                         <div id="waveform" class="mb-4"></div>
                         <div class="flex items-center gap-4 bg-slate-950/30 p-3 rounded-2xl border border-white/5">
                             <button id="play-pause-btn"
-                                class="w-12 h-12 bg-emerald-500 hover:bg-emerald-400 text-white rounded-full flex items-center justify-center shadow-lg shadow-emerald-500/20 transition-all active:scale-95">
+                                class="w-12 h-12 bg-amber-500 hover:bg-amber-400 text-white rounded-full flex items-center justify-center shadow-lg shadow-amber-500/20 transition-all active:scale-95">
                                 <i data-lucide="play" class="w-6 h-6 fill-white" id="play-icon"></i>
                             </button>
                             <div class="flex-1">
@@ -239,7 +251,7 @@
                                     <span id="duration">00:00</span>
                                 </div>
                                 <div class="h-1 bg-white/10 rounded-full overflow-hidden">
-                                    <div id="player-progress" class="h-full bg-emerald-500" style="width: 0%"></div>
+                                    <div id="player-progress" class="h-full bg-amber-500" style="width: 0%"></div>
                                 </div>
                             </div>
                         </div>
@@ -248,22 +260,22 @@
                     <!-- Export Card -->
                     <div id="export-container" class="hidden glass p-4 space-y-3 animate-fade-in">
                         <h3 class="text-sm font-semibold text-slate-300 flex items-center gap-2">
-                            <i data-lucide="download" class="w-4 h-4 text-emerald-500"></i>
+                            <i data-lucide="download" class="w-4 h-4 text-amber-500"></i>
                             تصدير التوقيتات
                         </h3>
                         <div class="grid grid-cols-3 gap-2">
                             <button id="export-json"
-                                class="bg-white/5 hover:bg-emerald-500/20 text-slate-300 text-xs py-2 rounded-lg transition-colors border border-white/5 hover:border-emerald-500/50 flex flex-col items-center gap-1">
+                                class="bg-white/5 hover:bg-amber-500/20 text-slate-300 text-xs py-2 rounded-lg transition-colors border border-white/5 hover:border-amber-500/50 flex flex-col items-center gap-1">
                                 <i data-lucide="file-json" class="w-4 h-4"></i>
                                 JSON
                             </button>
                             <button id="export-srt"
-                                class="bg-white/5 hover:bg-emerald-500/20 text-slate-300 text-xs py-2 rounded-lg transition-colors border border-white/5 hover:border-emerald-500/50 flex flex-col items-center gap-1">
+                                class="bg-white/5 hover:bg-amber-500/20 text-slate-300 text-xs py-2 rounded-lg transition-colors border border-white/5 hover:border-amber-500/50 flex flex-col items-center gap-1">
                                 <i data-lucide="subtitles" class="w-4 h-4"></i>
                                 SRT
                             </button>
                             <button id="export-vtt"
-                                class="bg-white/5 hover:bg-emerald-500/20 text-slate-300 text-xs py-2 rounded-lg transition-colors border border-white/5 hover:border-emerald-500/50 flex flex-col items-center gap-1">
+                                class="bg-white/5 hover:bg-amber-500/20 text-slate-300 text-xs py-2 rounded-lg transition-colors border border-white/5 hover:border-amber-500/50 flex flex-col items-center gap-1">
                                 <i data-lucide="file-text" class="w-4 h-4"></i>
                                 VTT
                             </button>
@@ -282,10 +294,15 @@
                         <!-- Header for Content -->
                         <div class="p-6 border-b border-white/5 flex justify-between items-center bg-white/5">
                             <div class="flex items-center gap-3">
-                                <i data-lucide="book-open" class="text-emerald-500 w-5 h-5"></i>
+                                <i data-lucide="book-open" class="text-amber-500 w-5 h-5"></i>
                                 <h2 class="font-semibold text-slate-200">عرض النص القرآني</h2>
                             </div>
                             <div class="flex gap-2">
+                                <button id="top-play-pause-btn"
+                                    class="hidden p-2 bg-amber-500/20 hover:bg-amber-500/30 text-amber-400 rounded-lg transition-colors border border-amber-500/20"
+                                    title="تشغيل / إيقاف">
+                                    <i data-lucide="play" id="top-play-icon" class="w-4 h-4 fill-amber-400"></i>
+                                </button>
                                 <button id="zoom-in-btn"
                                     class="p-2 hover:bg-white/10 rounded-lg transition-colors text-slate-400"
                                     title="تكبير الخط">
@@ -323,7 +340,7 @@
                                 <div class="spinner-outer"></div>
                                 <div class="spinner-inner"></div>
                             </div>
-                            <h3 id="loading-title" class="text-3xl font-bold mb-4 text-emerald-400">جاري التحليل السحابي
+                            <h3 id="loading-title" class="text-3xl font-bold mb-4 text-amber-400">جاري التحليل السحابي
                             </h3>
                             <p id="loading-desc" class="text-slate-400 max-w-md leading-relaxed">
                                 نستخدم الآن تقنيات الذكاء الاصطناعي لمزامنة الصوت مع النص بدقة متناهية. قد تستغرق هذه
@@ -332,7 +349,7 @@
 
                             <div class="mt-8 w-64 h-1.5 bg-white/10 rounded-full overflow-hidden">
                                 <div id="loading-progress-bar"
-                                    class="h-full bg-emerald-500 animate-[loading_2s_ease-in-out_infinite]"
+                                    class="h-full bg-amber-500 animate-[loading_2s_ease-in-out_infinite]"
                                     style="width: 30%"></div>
                             </div>
                         </div>
@@ -345,13 +362,13 @@
         <footer class="p-8 text-center border-t border-white/5 bg-slate-900/40 backdrop-blur-md">
             <div class="flex justify-center gap-6 mb-4">
                 <a href="https://github.com/alinice1998/colabwis" target="_blank"
-                    class="text-slate-500 hover:text-emerald-400 transition-colors"><i data-lucide="code-2"
+                    class="text-slate-500 hover:text-amber-400 transition-colors"><i data-lucide="code-2"
                         class="w-5 h-5"></i></a>
-                <a href="#" class="text-slate-500 hover:text-emerald-400 transition-colors"><i data-lucide="help-circle"
+                <a href="#" class="text-slate-500 hover:text-amber-400 transition-colors"><i data-lucide="help-circle"
                         class="w-5 h-5"></i></a>
             </div>
             <div class="flex flex-col items-center gap-2">
-                <p class="text-[15px] text-emerald-400/90 font-Amiri tracking-wider">
+                <p class="text-[15px] text-amber-400/90 font-Amiri tracking-wider">
                     طُوِّرَ بخالص النية لخدمة كتاب الله والمسلمين
                 </p>
                 <p class="text-[10px] text-slate-500">نسألكم صالح الدعاء</p>
@@ -365,26 +382,26 @@
     <!-- Word Action Menu (Floating Menu) -->
     <div id="word-action-menu" class="hidden absolute z-50 glass p-2 min-w-[200px] shadow-2xl animate-fade-in">
         <div class="px-4 py-3 bg-white/5 border-b border-white/5 flex justify-between items-center rounded-t-xl mb-1">
-            <span id="wam-word-text" class="font-Amiri text-emerald-400 text-xl font-bold">الكلمة</span>
+            <span id="wam-word-text" class="font-Amiri text-amber-400 text-xl font-bold">الكلمة</span>
             <button id="wam-close" class="text-slate-500 hover:text-white transition-colors">
                 <i data-lucide="x" class="w-4 h-4"></i>
             </button>
         </div>
         <div class="space-y-1">
             <button id="wam-play-word"
-                class="w-full text-right px-4 py-3 rounded-xl hover:bg-emerald-500/10 text-slate-200 transition-all flex items-center gap-3 group">
+                class="w-full text-right px-4 py-3 rounded-xl hover:bg-amber-500/10 text-slate-200 transition-all flex items-center gap-3 group">
                 <i data-lucide="play-circle"
-                    class="w-5 h-5 text-emerald-500 group-hover:scale-110 transition-transform"></i>
+                    class="w-5 h-5 text-amber-500 group-hover:scale-110 transition-transform"></i>
                 <span>تلاوة الكلمة</span>
             </button>
             <button id="wam-play-ayah"
-                class="w-full text-right px-4 py-3 rounded-xl hover:bg-emerald-500/10 text-slate-200 transition-all flex items-center gap-3 group">
-                <i data-lucide="layers" class="w-5 h-5 text-emerald-500 group-hover:scale-110 transition-transform"></i>
+                class="w-full text-right px-4 py-3 rounded-xl hover:bg-amber-500/10 text-slate-200 transition-all flex items-center gap-3 group">
+                <i data-lucide="layers" class="w-5 h-5 text-amber-500 group-hover:scale-110 transition-transform"></i>
                 <span>تلاوة الآية كاملة</span>
             </button>
             <button id="wam-edit-timing"
-                class="w-full text-right px-4 py-3 rounded-xl hover:bg-emerald-500/10 text-slate-200 transition-all flex items-center gap-3 group">
-                <i data-lucide="edit-3" class="w-5 h-5 text-emerald-500 group-hover:scale-110 transition-transform"></i>
+                class="w-full text-right px-4 py-3 rounded-xl hover:bg-amber-500/10 text-slate-200 transition-all flex items-center gap-3 group">
+                <i data-lucide="edit-3" class="w-5 h-5 text-amber-500 group-hover:scale-110 transition-transform"></i>
                 <span>تعديل التوقيت</span>
             </button>
         </div>
@@ -392,12 +409,12 @@
 
     <!-- Fixed Bottom Editor Bar -->
     <div id="timing-editor-bar"
-        class="hidden fixed bottom-0 left-0 right-0 z-50 glass border-t border-emerald-500/30 p-4 transform translate-y-full transition-transform duration-300 shadow-[0_-10px_40px_rgba(16,185,129,0.1)]">
+        class="hidden fixed bottom-0 left-0 right-0 z-50 glass border-t border-amber-500/30 p-4 transform translate-y-full transition-transform duration-300 shadow-[0_-10px_40px_rgba(16,185,129,0.1)]">
         <div class="container mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
             <!-- Current Word/Ayah Info -->
             <div class="flex items-center gap-4">
-                <div class="w-10 h-10 rounded-full bg-emerald-500/20 flex items-center justify-center">
-                    <i data-lucide="edit-2" class="text-emerald-500 w-5 h-5"></i>
+                <div class="w-10 h-10 rounded-full bg-amber-500/20 flex items-center justify-center">
+                    <i data-lucide="edit-2" class="text-amber-500 w-5 h-5"></i>
                 </div>
                 <div>
                     <p class="text-[10px] text-slate-400 uppercase tracking-widest font-bold mb-0.5"
@@ -415,14 +432,14 @@
                         <button class="px-2 py-1 text-xs hover:bg-white/10 rounded text-slate-300 font-mono"
                             id="editor-start-dec">-0.1</button>
                         <input type="number" id="editor-start-time" step="0.01"
-                            class="w-20 bg-transparent text-center text-emerald-400 font-mono text-sm outline-none font-bold border-none ring-0">
+                            class="w-20 bg-transparent text-center text-amber-400 font-mono text-sm outline-none font-bold border-none ring-0">
                         <button class="px-2 py-1 text-xs hover:bg-white/10 rounded text-slate-300 font-mono"
                             id="editor-start-inc">+0.1</button>
                     </div>
                 </div>
 
                 <button id="editor-play-btn"
-                    class="w-12 h-12 rounded-full bg-emerald-500 hover:bg-emerald-400 flex items-center justify-center text-white transition-all shadow-lg shadow-emerald-500/20 mx-2 flex-shrink-0">
+                    class="w-12 h-12 rounded-full bg-amber-500 hover:bg-amber-400 flex items-center justify-center text-white transition-all shadow-lg shadow-amber-500/20 mx-2 flex-shrink-0">
                     <i data-lucide="play" class="w-5 h-5 fill-white"></i>
                 </button>
 
@@ -433,7 +450,7 @@
                         <button class="px-2 py-1 text-xs hover:bg-white/10 rounded text-slate-300 font-mono"
                             id="editor-end-dec">-0.1</button>
                         <input type="number" id="editor-end-time" step="0.01"
-                            class="w-20 bg-transparent text-center text-emerald-400 font-mono text-sm outline-none font-bold border-none ring-0">
+                            class="w-20 bg-transparent text-center text-amber-400 font-mono text-sm outline-none font-bold border-none ring-0">
                         <button class="px-2 py-1 text-xs hover:bg-white/10 rounded text-slate-300 font-mono"
                             id="editor-end-inc">+0.1</button>
                     </div>
@@ -452,7 +469,7 @@
                     <i data-lucide="chevron-right" class="w-5 h-5"></i>
                 </button>
                 <button id="editor-save-btn"
-                    class="bg-emerald-500 hover:bg-emerald-400 text-white px-6 py-2 rounded-xl font-medium transition-all shadow-lg shadow-emerald-500/20">
+                    class="bg-amber-500 hover:bg-amber-400 text-white px-6 py-2 rounded-xl font-medium transition-all shadow-lg shadow-amber-500/20">
                     حفظ
                 </button>
                 <button id="editor-next-btn" class="p-2 hover:bg-white/5 rounded-lg text-slate-400 transition-colors"
@@ -475,8 +492,8 @@
         <div class="glass w-full max-w-3xl rounded-2xl border border-white/10 shadow-2xl flex flex-col max-h-[90vh]">
             <div class="p-6 border-b border-white/10 flex justify-between items-center bg-white/5">
                 <div class="flex items-center gap-3">
-                    <div class="w-10 h-10 rounded-full bg-emerald-500/20 flex items-center justify-center">
-                        <i data-lucide="edit-3" class="text-emerald-500 w-5 h-5"></i>
+                    <div class="w-10 h-10 rounded-full bg-amber-500/20 flex items-center justify-center">
+                        <i data-lucide="edit-3" class="text-amber-500 w-5 h-5"></i>
                     </div>
                     <div>
                         <h3 class="text-lg font-bold text-white">تعديل النص المنطوق</h3>
@@ -490,7 +507,7 @@
             </div>
             <div class="p-6 flex-1 overflow-y-auto custom-scrollbar">
                 <textarea id="ref-text-editor"
-                    class="w-full h-64 bg-slate-900/50 border border-white/10 rounded-xl p-4 text-white font-Amiri text-2xl leading-[2.5] focus:ring-2 focus:ring-emerald-500/50 outline-none resize-none"
+                    class="w-full h-64 bg-slate-900/50 border border-white/10 rounded-xl p-4 text-white font-Amiri text-2xl leading-[2.5] focus:ring-2 focus:ring-amber-500/50 outline-none resize-none"
                     dir="rtl"></textarea>
                 <div
                     class="mt-4 flex gap-3 text-xs text-amber-400/90 bg-amber-500/10 p-3 rounded-xl border border-amber-500/20">
@@ -503,7 +520,7 @@
                 <button id="cancel-edit-btn"
                     class="px-6 py-2.5 rounded-xl text-slate-300 hover:bg-white/5 transition-colors font-medium">إلغاء</button>
                 <button id="save-edit-btn"
-                    class="px-6 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-white font-medium shadow-lg shadow-emerald-500/20 transition-all flex items-center gap-2">
+                    class="px-6 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-white font-medium shadow-lg shadow-amber-500/20 transition-all flex items-center gap-2">
                     <i data-lucide="check" class="w-4 h-4"></i>
                     اعتماد النص
                 </button>
@@ -515,12 +532,12 @@
     <div id="how-it-works-modal"
         class="hidden fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-[100] flex items-center justify-center p-4 animate-fade-in">
         <div
-            class="glass w-full max-w-2xl rounded-2xl border border-emerald-500/20 shadow-2xl flex flex-col max-h-[90vh]">
+            class="glass w-full max-w-2xl rounded-2xl border border-amber-500/20 shadow-2xl flex flex-col max-h-[90vh]">
             <div class="p-6 border-b border-white/10 flex justify-between items-center bg-white/5">
                 <div class="flex items-center gap-3">
                     <div
-                        class="w-10 h-10 rounded-full bg-emerald-500/20 flex items-center justify-center shadow-lg shadow-emerald-500/20">
-                        <i data-lucide="help-circle" class="text-emerald-500 w-5 h-5"></i>
+                        class="w-10 h-10 rounded-full bg-amber-500/20 flex items-center justify-center shadow-lg shadow-amber-500/20">
+                        <i data-lucide="help-circle" class="text-amber-500 w-5 h-5"></i>
                     </div>
                     <div>
                         <h3 class="text-lg font-bold text-white">كيف يعمل البرنامج؟</h3>
@@ -534,7 +551,7 @@
             <div class="p-6 flex-1 overflow-y-auto custom-scrollbar space-y-6 text-slate-300">
                 <div class="flex gap-4">
                     <div
-                        class="flex-shrink-0 w-8 h-8 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center font-bold">
+                        class="flex-shrink-0 w-8 h-8 rounded-full bg-amber-500/20 text-amber-400 flex items-center justify-center font-bold">
                         1</div>
                     <div>
                         <h4 class="font-bold text-white text-lg mb-1">اختر طريقة المزامنة وانسخ الكود</h4>
@@ -544,7 +561,7 @@
                 </div>
                 <div class="flex gap-4">
                     <div
-                        class="flex-shrink-0 w-8 h-8 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center font-bold">
+                        class="flex-shrink-0 w-8 h-8 rounded-full bg-amber-500/20 text-amber-400 flex items-center justify-center font-bold">
                         2</div>
                     <div>
                         <h4 class="font-bold text-white text-lg mb-1">شغل الكود في جوجل كولاب (Google Colab)</h4>
@@ -554,7 +571,7 @@
                 </div>
                 <div class="flex gap-4">
                     <div
-                        class="flex-shrink-0 w-8 h-8 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center font-bold">
+                        class="flex-shrink-0 w-8 h-8 rounded-full bg-amber-500/20 text-amber-400 flex items-center justify-center font-bold">
                         3</div>
                     <div>
                         <h4 class="font-bold text-white text-lg mb-1">احصل على رابط الخادم</h4>
@@ -565,7 +582,7 @@
                 </div>
                 <div class="flex gap-4">
                     <div
-                        class="flex-shrink-0 w-8 h-8 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center font-bold">
+                        class="flex-shrink-0 w-8 h-8 rounded-full bg-amber-500/20 text-amber-400 flex items-center justify-center font-bold">
                         4</div>
                     <div>
                         <h4 class="font-bold text-white text-lg mb-1">ابدأ المزامنة</h4>
@@ -587,12 +604,12 @@
     <div id="colab-code-modal"
         class="hidden fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-[100] flex items-center justify-center p-4 animate-fade-in">
         <div
-            class="glass w-full max-w-3xl rounded-2xl border border-emerald-500/20 shadow-2xl flex flex-col max-h-[90vh]">
+            class="glass w-full max-w-3xl rounded-2xl border border-amber-500/20 shadow-2xl flex flex-col max-h-[90vh]">
             <div class="p-6 border-b border-white/10 flex justify-between items-center bg-white/5">
                 <div class="flex items-center gap-3">
                     <div
-                        class="w-10 h-10 rounded-full bg-emerald-500/20 flex items-center justify-center shadow-lg shadow-emerald-500/20">
-                        <i data-lucide="terminal" class="text-emerald-500 w-5 h-5"></i>
+                        class="w-10 h-10 rounded-full bg-amber-500/20 flex items-center justify-center shadow-lg shadow-amber-500/20">
+                        <i data-lucide="terminal" class="text-amber-500 w-5 h-5"></i>
                     </div>
                     <div>
                         <h3 class="text-lg font-bold text-white">أكواد التشغيل (Google Colab)</h3>
