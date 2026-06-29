@@ -186,13 +186,19 @@ document.addEventListener('DOMContentLoaded', () => {
         if (quranData[recitation]) return true;
         
         try {
+            loadingOverlay.classList.remove('hidden');
+            loadingTitle.textContent = 'جاري تحميل نص القرآن...';
+            loadingDesc.textContent = 'يتم جلب نصوص الآيات محلياً لأول مرة...';
+            
             const response = await fetch(`data/quran_${recitation}.json`);
             quranData[recitation] = await response.json();
             
+            loadingOverlay.classList.add('hidden');
             return true;
         } catch (error) {
             console.error(`Error loading ${recitation} data:`, error);
             alert('فشل في تحميل نص القرآن. تأكد من وجود ملفات JSON في مجلد data.');
+            loadingOverlay.classList.add('hidden');
             return false;
         }
     }
