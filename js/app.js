@@ -10,6 +10,12 @@ document.addEventListener('DOMContentLoaded', () => {
     const methodSelect = document.getElementById('method-select');
     const ayahIdInput = document.getElementById('ayah-id');
     const apiUrlInput = document.getElementById('api-url');
+    const waqfThresholdInput = document.getElementById('waqf-threshold');
+    const realSilenceThresholdInput = document.getElementById('real-silence-threshold');
+    const silenceSensitivityInput = document.getElementById('silence-sensitivity');
+    const silenceSensitivityVal = document.getElementById('silence-sensitivity-val');
+    const silenceEngineSelect = document.getElementById('silence-engine-select');
+    const silenceSensitivityContainer = document.getElementById('silence-sensitivity-container');
     const uploadZone = document.getElementById('upload-zone');
     const audioUpload = document.getElementById('audio-upload');
     const processBtn = document.getElementById('process-btn');
@@ -63,6 +69,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let wavesurfer;
     let alignments = [];
     let originalAlignments = [];
+    let audioSilences = [];
     let surahData = [];
     let quranData = { hafsh: null, warsh: null };
     let customReferenceText = null;
@@ -97,8 +104,8 @@ document.addEventListener('DOMContentLoaded', () => {
         wavesurfer = WaveSurfer.create({
             container: '#waveform',
             waveColor: 'rgba(255, 255, 255, 0.1)',
-            progressColor: '#10b981',
-            cursorColor: '#10b981',
+            progressColor: '#f59e0b',
+            cursorColor: '#f59e0b',
             barWidth: 2,
             barGap: 3,
             barRadius: 4,
@@ -208,11 +215,53 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    const waqfThresholdInput = document.getElementById('waqf-threshold');
     if (waqfThresholdInput) {
         waqfThresholdInput.addEventListener('change', () => {
             if (alignments && alignments.length > 0) {
                 regroupByWaqf();
+            }
+        });
+    }
+
+    const silenceDetectionMethod = document.getElementById('silence-detection-method');
+    if (silenceDetectionMethod) {
+        silenceDetectionMethod.addEventListener('change', () => {
+            if (alignments && alignments.length > 0) {
+                regroupByWaqf();
+            }
+        });
+    }
+
+    const whisperTimingSource = document.getElementById('whisper-timing-source');
+    if (whisperTimingSource) {
+        whisperTimingSource.addEventListener('change', () => {
+            if (alignments && alignments.length > 0) {
+                regroupByWaqf();
+            }
+        });
+    }
+
+    const realSilenceThreshold = document.getElementById('real-silence-threshold');
+    if (realSilenceThreshold) {
+        realSilenceThreshold.addEventListener('change', () => {
+            if (alignments && alignments.length > 0) {
+                regroupByWaqf();
+            }
+        });
+    }
+
+    if (silenceSensitivityInput && silenceSensitivityVal) {
+        silenceSensitivityInput.addEventListener('input', (e) => {
+            silenceSensitivityVal.textContent = e.target.value + '%';
+        });
+    }
+
+    if (silenceEngineSelect && silenceSensitivityContainer) {
+        silenceEngineSelect.addEventListener('change', () => {
+            if (silenceEngineSelect.value === 'silero') {
+                silenceSensitivityContainer.classList.add('hidden');
+            } else {
+                silenceSensitivityContainer.classList.remove('hidden');
             }
         });
     }
@@ -258,7 +307,7 @@ document.addEventListener('DOMContentLoaded', () => {
             });
 
             const ayahNum = document.createElement('span');
-            ayahNum.className = 'text-emerald-500/60 font-Tajawal text-lg align-middle mx-4 select-none';
+            ayahNum.className = 'text-amber-500/60 font-Tajawal text-lg align-middle mx-4 select-none';
             ayahNum.innerHTML = `&nbsp;﴿${ayah.id}﴾&nbsp;`;
             ayahSpan.appendChild(ayahNum);
 
@@ -278,16 +327,120 @@ document.addEventListener('DOMContentLoaded', () => {
             const url = URL.createObjectURL(file);
             initWavesurfer(url);
             uploadZone.querySelector('p').textContent = file.name;
-            uploadZone.classList.add('border-emerald-500/50', 'bg-emerald-500/5');
+            uploadZone.classList.add('border-amber-500/50', 'bg-amber-500/5');
+            
+            calculateOptimalSensitivity(file);
         }
     };
+
+    async function calculateOptimalSensitivity(file) {
+        if (!silenceSensitivityInput || !silenceSensitivityVal) return;
+        
+        const originalText = silenceSensitivityVal.textContent;
+        silenceSensitivityVal.textContent = 'جاري الحساب...';
+        silenceSensitivityVal.classList.add('animate-pulse');
+        
+        try {
+            const arrayBuffer = await file.arrayBuffer();
+            const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            const audioBuffer = await audioCtx.decodeAudioData(arrayBuffer);
+            
+            const channelData = audioBuffer.getChannelData(0);
+            
+            // Use 50ms frames for accurate speech/pause resolution
+            const frameSize = Math.floor(audioBuffer.sampleRate * 0.05); 
+            let dbValues = [];
+            
+            for (let i = 0; i < channelData.length; i += frameSize) {
+                let sum = 0;
+                let actualChunkSize = Math.min(frameSize, channelData.length - i);
+                for (let j = 0; j < actualChunkSize; j++) {
+                    sum += channelData[i + j] * channelData[i + j];
+                }
+                const rms = Math.sqrt(sum / actualChunkSize);
+                // Convert to dB, avoiding -Infinity
+                dbValues.push(rms > 1e-6 ? 20 * Math.log10(rms) : -120);
+            }
+            
+            if (dbValues.length > 0) {
+                const peakDb = Math.max(...dbValues);
+                
+                // 1. Trim absolute leading and trailing silence (e.g. 60dB below peak)
+                // so it doesn't skew our pause ratio calculation.
+                let startIdx = 0;
+                while (startIdx < dbValues.length && dbValues[startIdx] < peakDb - 60) {
+                    startIdx++;
+                }
+                
+                let endIdx = dbValues.length - 1;
+                while (endIdx >= 0 && dbValues[endIdx] < peakDb - 60) {
+                    endIdx--;
+                }
+                
+                if (startIdx > endIdx) {
+                    startIdx = 0;
+                    endIdx = dbValues.length - 1;
+                }
+                
+                const activeDbValues = dbValues.slice(startIdx, endIdx + 1);
+                
+                // 2. Target Silence Ratio (TSR) Algorithm
+                // In natural Quran recitation, structural pauses (between ayahs/words) 
+                // typically make up about 20% to 25% of the active reading time.
+                // We find the top_db that yields exactly this ratio of silence!
+                const targetSilenceRatio = 0.22; // 22% pauses
+                
+                let optimalTopDb = 15;
+                let bestDiff = Infinity;
+                
+                // Test top_db values from 5 (very strict) to 60 (very loose)
+                for (let testDb = 5; testDb <= 60; testDb++) {
+                    let threshold = peakDb - testDb;
+                    let silenceCount = 0;
+                    
+                    for (let i = 0; i < activeDbValues.length; i++) {
+                        if (activeDbValues[i] < threshold) {
+                            silenceCount++;
+                        }
+                    }
+                    
+                    let ratio = silenceCount / activeDbValues.length;
+                    let diff = Math.abs(ratio - targetSilenceRatio);
+                    
+                    if (diff < bestDiff) {
+                        bestDiff = diff;
+                        optimalTopDb = testDb;
+                    }
+                }
+                
+                let optimal = optimalTopDb + 8; // إضافة 8 بناءً على ملاحظة أن الأفضل عادة أكبر بحوالي 8
+                
+                silenceSensitivityInput.value = optimal;
+                silenceSensitivityVal.textContent = optimal + '% (تلقائي)';
+                
+                if (silenceSensitivityContainer) {
+                    silenceSensitivityContainer.classList.add('ring-2', 'ring-amber-500', 'p-2', 'rounded-lg', 'transition-all', 'duration-500');
+                    setTimeout(() => {
+                        silenceSensitivityContainer.classList.remove('ring-2', 'ring-amber-500', 'p-2', 'rounded-lg');
+                    }, 3000);
+                }
+            } else {
+                silenceSensitivityVal.textContent = originalText;
+            }
+        } catch (e) {
+            console.error("Error calculating sensitivity:", e);
+            silenceSensitivityVal.textContent = originalText;
+        } finally {
+            silenceSensitivityVal.classList.remove('animate-pulse');
+        }
+    }
 
     // --- Processing ---
     processBtn.onclick = async () => {
         const file = selectedFile;
         const surahId = surahSelect.value;
         const apiUrl = apiUrlInput.value.trim().replace(/\/$/, '');
-        const method = methodSelect.value;
+        const method = methodSelect ? methodSelect.value : 'waqf_backend';
         const recitation = recitationSelect.value;
         
         if (!file || !surahId) {
@@ -333,12 +486,16 @@ document.addEventListener('DOMContentLoaded', () => {
 
         try {
             if (method === 'waqf_backend') {
-                loadingTitle.textContent = 'جاري المزامنة عبر منجم...';
+                loadingTitle.textContent = 'جاري التقسيم عبر خادم وقف...';
                 loadingDesc.textContent = 'يتم الآن تحليل الآيات على الخادم السحابي...';
 
                 const formData = new FormData();
                 formData.append('file', file);
                 formData.append('riwaya', recitation);
+                formData.append('silence_sensitivity', silenceSensitivityInput.value);
+                if (silenceEngineSelect) {
+                    formData.append('silence_engine', silenceEngineSelect.value);
+                }
 
                 const response = await fetch(`${apiUrl}/align/${surahId}`, {
                     method: 'POST',
@@ -354,22 +511,22 @@ document.addEventListener('DOMContentLoaded', () => {
                     if (result.data) {
                         originalAlignments = JSON.parse(JSON.stringify(result.data));
                     }
-                    handleWaqf BackendSuccess(result);
+                    handleWaqfBackendSuccess(result);
                 } else if (result.status === 'queued' || result.status === 'processing') {
                     // Start polling
-                    pollWaqf BackendStatus(result.job_id, apiUrl, surahId);
+                    pollWaqfBackendStatus(result.job_id, apiUrl, surahId);
                 } else {
                     // Fallback to old synchronous behavior if status is not present
                     if (result.data) {
                         originalAlignments = JSON.parse(JSON.stringify(result.data));
                     }
-                    handleWaqf BackendSuccess(result);
+                    handleWaqfBackendSuccess(result);
                 }
 
             } else {
                 // CTC or Whisper Cloud
                 loadingTitle.textContent = 'جاري الرفع إلى كولاب...';
-                loadingDesc.textContent = 'يتم الآن إرسال الملف والنص المرجعي للمزامنة...';
+                loadingDesc.textContent = 'يتم الآن إرسال الملف والنص المرجعي للتقسيم...';
 
                 // Get raw text from local JSON or custom edited text
                 let rawWords = [];
@@ -393,6 +550,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 formData.append('file', file);
                 formData.append('reference_text', referenceText);
                 formData.append('method', method.replace('_cloud', ''));
+                formData.append('silence_sensitivity', silenceSensitivityInput.value);
 
                 const response = await fetch(`${apiUrl}/align/cloud`, {
                     method: 'POST',
@@ -637,7 +795,13 @@ document.addEventListener('DOMContentLoaded', () => {
         regroupByWaqf();
     }
 
-    function handleWaqf BackendSuccess(result) {
+    function handleWaqfBackendSuccess(result) {
+        if (result.silences) {
+            audioSilences = result.silences;
+        } else {
+            audioSilences = [];
+        }
+
         // Check if words exist
         const hasWords = result.data.some(d => d.words && d.words.length > 0);
         
@@ -714,7 +878,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    async function pollWaqf BackendStatus(jobId, apiUrl, surahId, startTime = Date.now()) {
+    async function pollWaqfBackendStatus(jobId, apiUrl, surahId, startTime = Date.now()) {
         try {
             const response = await fetch(`${apiUrl}/align/status/${jobId}`, {
                 headers: { 'Bypass-Tunnel-Reminder': 'true' }
@@ -728,18 +892,18 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (result.data) {
                     originalAlignments = JSON.parse(JSON.stringify(result.data));
                 }
-                handleWaqf BackendSuccess(result);
+                handleWaqfBackendSuccess(result);
             } else if (result.status === 'error') {
-                alert('خطأ في معالجة منجم: ' + result.message);
+                alert('خطأ في معالجة وقف للأنفاس: ' + result.message);
                 loadingOverlay.classList.add('hidden');
             } else {
-                loadingTitle.textContent = 'جاري المزامنة عبر منجم...';
+                loadingTitle.textContent = 'جاري المزامنة عبر وقف للأنفاس...';
                 loadingDesc.textContent = `المهمة قيد التنفيذ، يرجى الانتظار... (${elapsed} ثانية)`;
-                setTimeout(() => pollWaqf BackendStatus(jobId, apiUrl, surahId, startTime), 3000);
+                setTimeout(() => pollWaqfBackendStatus(jobId, apiUrl, surahId, startTime), 3000);
             }
         } catch (error) {
             console.warn('Polling error (retrying...):', error);
-            setTimeout(() => pollWaqf BackendStatus(jobId, apiUrl, surahId, startTime), 5000);
+            setTimeout(() => pollWaqfBackendStatus(jobId, apiUrl, surahId, startTime), 5000);
         }
     }
 
@@ -758,34 +922,96 @@ document.addEventListener('DOMContentLoaded', () => {
         for (let i = 0; i < alignments.length; i++) {
             const align = alignments[i];
             const el = align.element;
-            
-            currentWaqfSpan.appendChild(el);
-            currentWaqfSpan.appendChild(document.createTextNode(' '));
-            
-            // Check if this is the last word of the ayah
             const currentAyahId = el.dataset.wordIndex.split('-')[0];
             const nextAlign = alignments[i+1];
             const nextAyahId = nextAlign ? nextAlign.element.dataset.wordIndex.split('-')[0] : null;
             
+            // 1. تقييم قرار القطع (النفس)
+            let isBreath = false;
+            let gap = 0;
+            
+            if (nextAlign) {
+                const whisperSource = document.getElementById('whisper-timing-source')?.value || 'original';
+                const useOriginal = whisperSource === 'original';
+                
+                const start2 = useOriginal 
+                    ? Number(nextAlign.original_start ?? nextAlign.start)
+                    : Number(nextAlign.start);
+                    
+                const end1 = useOriginal 
+                    ? Number(align.original_end ?? align.end)
+                    : Number(align.end);
+                    
+                gap = start2 - end1;
+                
+                // فحص الأنفاس الحقيقية باستخدام Librosa
+                let hasRealSilence = false;
+                const silenceMethod = document.getElementById('silence-detection-method')?.value || 'or';
+                const realSilenceThreshInput = document.getElementById('real-silence-threshold');
+                const rsThreshold = realSilenceThreshInput ? parseFloat(realSilenceThreshInput.value) || 0.15 : 0.15;
+
+                // لا نقوم بفحص مكتبة الصمت إلا إذا كانت الطريقة تتطلبها
+                if (silenceMethod !== 'whisper_only' && audioSilences && audioSilences.length > 0) {
+                    const A = end1 - 0.2;
+                    const B = start2 + 0.2;
+                    for (const [sStartStr, sEndStr] of audioSilences) {
+                        const C = Number(sStartStr);
+                        const D = Number(sEndStr);
+                        const overlapStart = Math.max(A, C);
+                        const overlapEnd = Math.min(B, D);
+                        
+                        // صمت يتلامس مع الفجوة ومدته أكبر من الحد المسموح
+                        if (overlapStart <= overlapEnd && (D - C >= rsThreshold)) {
+                            hasRealSilence = true;
+                            break;
+                        }
+                    }
+                }
+                
+                // نقطع المقطع بناءً على الطريقة المختارة
+                const whisperCondition = gap >= threshold;
+                const librosaCondition = hasRealSilence;
+
+                if (silenceMethod === 'or') {
+                    isBreath = librosaCondition || whisperCondition;
+                } else if (silenceMethod === 'and') {
+                    isBreath = librosaCondition && whisperCondition;
+                } else if (silenceMethod === 'librosa_only') {
+                    isBreath = librosaCondition;
+                } else if (silenceMethod === 'whisper_only') {
+                    isBreath = whisperCondition;
+                }
+            }
+            
+            const shouldSplit = nextAlign && isBreath;
+            
+            // 2. إضافة الكلمة
+            currentWaqfSpan.appendChild(el);
+            currentWaqfSpan.appendChild(document.createTextNode(' '));
+            
+            // 3. إضافة رقم الآية وتوضيح حالة الوصل البصري
             if (currentAyahId !== nextAyahId) {
                 const ayahNum = document.createElement('span');
-                ayahNum.className = 'text-emerald-500/60 font-Tajawal text-xl align-middle mx-2 select-none';
-                ayahNum.innerHTML = `&nbsp;﴿${currentAyahId}﴾&nbsp;`;
+                
+                if (!shouldSplit && nextAlign) {
+                    // الآية موصولة بما بعدها في نفس واحد
+                    ayahNum.className = 'font-Tajawal text-xl align-middle mx-2 select-none text-amber-500/90 font-bold';
+                    ayahNum.innerHTML = `&nbsp;﴿${currentAyahId}﴾ <span class="text-xs text-amber-500/80 bg-amber-500/10 px-2 py-0.5 rounded-full ml-1 border border-amber-500/20" title="تمت القراءة موصولة في نفس واحد">موصولة</span>&nbsp;`;
+                } else {
+                    // الآية مقطوعة طبيعياً
+                    ayahNum.className = 'font-Tajawal text-xl align-middle mx-2 select-none text-amber-500/60';
+                    ayahNum.innerHTML = `&nbsp;﴿${currentAyahId}﴾&nbsp;`;
+                }
+                
                 currentWaqfSpan.appendChild(ayahNum);
                 currentWaqfSpan.appendChild(document.createTextNode(' '));
             }
             
-            // Check Waqf gap
-            if (nextAlign) {
-                const start2 = nextAlign.original_start ?? nextAlign.start;
-                const end1 = align.original_end ?? align.end;
-                const gap = start2 - end1;
-                
-                if (gap >= threshold) {
-                    quranContent.appendChild(currentWaqfSpan);
-                    currentWaqfSpan = document.createElement('span');
-                    currentWaqfSpan.className = 'waqf-segment block mb-10 animate-fade-in text-center bg-white/5 p-4 rounded-2xl border border-white/5';
-                }
+            // 4. تطبيق القطع إذا لزم الأمر
+            if (shouldSplit) {
+                quranContent.appendChild(currentWaqfSpan);
+                currentWaqfSpan = document.createElement('span');
+                currentWaqfSpan.className = 'waqf-segment block mb-10 animate-fade-in text-center bg-white/5 p-4 rounded-2xl border border-white/5';
             }
         }
         
@@ -975,8 +1201,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Highlight element
         const wordElements = document.querySelectorAll('.quran-word, .quran-ayah');
-        wordElements.forEach(el => el.classList.remove('active', 'border-b-2', 'border-emerald-500'));
-        a.element.classList.add('active', 'border-b-2', 'border-emerald-500');
+        wordElements.forEach(el => el.classList.remove('active', 'border-b-2', 'border-amber-500'));
+        a.element.classList.add('active', 'border-b-2', 'border-amber-500');
         if (!isElementInViewport(a.element)) a.element.scrollIntoView({ behavior: 'smooth', block: 'center' });
     }
 
@@ -985,7 +1211,7 @@ document.addEventListener('DOMContentLoaded', () => {
         setTimeout(() => {
             timingEditorBar.classList.add('hidden');
             const wordElements = document.querySelectorAll('.quran-word, .quran-ayah');
-            wordElements.forEach(el => el.classList.remove('border-b-2', 'border-emerald-500'));
+            wordElements.forEach(el => el.classList.remove('border-b-2', 'border-amber-500'));
         }, 300);
     }
 
@@ -1297,14 +1523,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const colabCodes = {
         waqf_backend: [
-            `# الخلية الأولى: إعداد البيئة وتثبيت المكتبات\n# 1. تحميل المشروع من جديد\n!rm -rf waqf_backend\n!git clone https://github.com/alinice1998/waqf_backend.git\n\n# 2. الدخول للمجلد المتداخل الذي يحتوي على ملفات التثبيت\n%cd /content/waqf_backend/waqf_backend\n\n# 3. التثبيت\n!apt-get install -y ffmpeg\n!pip uninstall -y numpy ctc-segmentation\n!pip install git+https://github.com/m-bain/whisperx.git\n!pip install -e .\n%cd /content/waqf_backend\n!pip install -r server/requirements.txt\n!pip install "numpy<2"\n!pip install --no-cache-dir rapidfuzz ctc-segmentation`,
+            `# الخلية الأولى: إعداد البيئة وتثبيت المكتبات\n# 1. تحميل المشروع من جديد\n!rm -rf waqf_backend\n!git clone https://github.com/alinice1998/waqf_backend.git\n\n# 2. الدخول للمجلد الجذر للمشروع\n%cd /content/waqf_backend\n\n# 3. التثبيت\n!apt-get install -y ffmpeg\n!pip uninstall -y numpy ctc-segmentation\n!pip install git+https://github.com/m-bain/whisperx.git\n!pip install -e .\n!pip install -r server/requirements.txt\n!pip install --no-cache-dir rapidfuzz ctc-segmentation\n!pip install "numpy<2" --force-reinstall`,
             `# الخلية الثانية: تشغيل الخادم والحصول على الرابط عبر Cloudflare\nimport subprocess, threading, time, re, os\n\nos.chdir("/content/waqf_backend")\n\n# تحميل أداة cloudflared\nif not os.path.exists("cloudflared"):\n    subprocess.run([\n        "curl", "-sL",\n        "https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64",\n        "-o", "cloudflared"\n    ], check=True)\n    subprocess.run(["chmod", "+x", "cloudflared"], check=True)\n\n# تشغيل خادم uvicorn في الخلفية (يعمل على server/app.py)\nuvicorn_proc = subprocess.Popen(\n    ["uvicorn", "server.app:app", "--host", "0.0.0.0", "--port", "8000"],\n    stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True\n)\nprint("⏳ جاري تشغيل خادم Uvicorn (يرجى الانتظار 10 ثوانٍ)...")\ntime.sleep(10)  # مهلة لضمان بدء الخادم\n\n# تشغيل cloudflared والتقاط الرابط\ncf_proc = subprocess.Popen(\n    ["./cloudflared", "tunnel", "--url", "http://localhost:8000"],\n    stderr=subprocess.PIPE, text=True\n)\n\nprint("⏳ جاري الاتصال بـ Cloudflare Tunnel...")\nurl = None\nfor line in cf_proc.stderr:\n    match = re.search(r'https://[a-z0-9\\-]+\\.trycloudflare\\.com', line)\n    if match:\n        url = match.group(0)\n        print(f"\\n✅ الرابط العام جاهز:\\n🌐 {url}\\n")\n        print("📌 انسخ هذا الرابط واستخدمه في التطبيق الخاص بك")\n        print("⚠️  لا توجد كلمة مرور - فقط انسخ الرابط مباشرة")\n        break\n\n# إبقاء الخلية تعمل وعرض التحديثات لمنع توقف كولاب\nprint("\\n🔥 الخادم يعمل الآن. سيتم عرض التحديثات أدناه...\\n")\nfor line in uvicorn_proc.stdout:\n    print(line, end="")`
         ],
         hybrid: [
-            `# 1. إعداد المشروع وتشغيل خادم المزامنة الهجينة (Hybrid)\n!rm -rf colabwis\n!git clone https://github.com/alinice1998/colabwis.git\n%cd colabwis\n\n!apt-get install -y ffmpeg\n!pip uninstall -y numpy ctc-segmentation\n!pip install git+https://github.com/m-bain/whisperx.git\n!pip install -r requirements.txt\n!pip install "numpy<2"\n!pip install --no-cache-dir rapidfuzz ctc-segmentation\n!python model_downloader.py\n\nimport subprocess, threading, time, re, os\n\n# تحميل cloudflared\nif not os.path.exists("cloudflared"):\n    subprocess.run(["curl", "-sL", "https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64", "-o", "cloudflared"], check=True)\n    subprocess.run(["chmod", "+x", "cloudflared"], check=True)\n\n# تشغيل الخادم\nuvicorn_proc = subprocess.Popen(["uvicorn", "colab_server:app", "--host", "0.0.0.0", "--port", "8000"], stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)\nprint("⏳ جاري تشغيل الخادم (قد يستغرق تحميل النماذج 15-20 ثانية)...")\ntime.sleep(15)\n\n# تشغيل النفق والتقاط الرابط\ncf_proc = subprocess.Popen(["./cloudflared", "tunnel", "--url", "http://localhost:8000"], stderr=subprocess.PIPE, text=True)\n\nfor line in cf_proc.stderr:\n    match = re.search(r'https://[a-z0-9\\-]+\\.trycloudflare\\.com', line)\n    if match:\n        print(f"\\n✅ الرابط العام جاهز:\\n🌐 {match.group(0)}\\n")\n        break\n\nfor line in uvicorn_proc.stdout: print(line, end="")`
+            `# 1. إعداد المشروع وتشغيل خادم المزامنة الهجينة (Hybrid)\n!rm -rf colabwis\n!git clone https://github.com/alinice1998/colabwis.git\n%cd colabwis\n\n!apt-get install -y ffmpeg\n!pip uninstall -y numpy ctc-segmentation\n!pip install git+https://github.com/m-bain/whisperx.git\n!pip install -r requirements.txt\n!pip install --no-cache-dir rapidfuzz ctc-segmentation\n!pip install "numpy<2" --force-reinstall\n!python model_downloader.py\n\nimport subprocess, threading, time, re, os\n\n# تحميل cloudflared\nif not os.path.exists("cloudflared"):\n    subprocess.run(["curl", "-sL", "https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64", "-o", "cloudflared"], check=True)\n    subprocess.run(["chmod", "+x", "cloudflared"], check=True)\n\n# تشغيل الخادم\nuvicorn_proc = subprocess.Popen(["uvicorn", "colab_server:app", "--host", "0.0.0.0", "--port", "8000"], stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)\nprint("⏳ جاري تشغيل الخادم (قد يستغرق تحميل النماذج 15-20 ثانية)...")\ntime.sleep(15)\n\n# تشغيل النفق والتقاط الرابط\ncf_proc = subprocess.Popen(["./cloudflared", "tunnel", "--url", "http://localhost:8000"], stderr=subprocess.PIPE, text=True)\n\nfor line in cf_proc.stderr:\n    match = re.search(r'https://[a-z0-9\\-]+\\.trycloudflare\\.com', line)\n    if match:\n        print(f"\\n✅ الرابط العام جاهز:\\n🌐 {match.group(0)}\\n")\n        break\n\nfor line in uvicorn_proc.stdout: print(line, end="")`
         ],
         ctc_cloud: [
-            `# 1. إعداد المشروع وتشغيل خادم CTC\n!rm -rf colabwis\n!git clone https://github.com/alinice1998/colabwis.git\n%cd colabwis\n\n!apt-get install -y ffmpeg\n!pip uninstall -y numpy ctc-segmentation\n!pip install "numpy<2"\n!pip install rapidfuzz ctc-segmentation\n!pip install -r requirements.txt\n!pip install git+https://github.com/m-bain/whisperx.git\n!python model_downloader.py\n\nimport subprocess, threading, time, re, os\n\n# تحميل cloudflared\nif not os.path.exists("cloudflared"):\n    subprocess.run(["curl", "-sL", "https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64", "-o", "cloudflared"], check=True)\n    subprocess.run(["chmod", "+x", "cloudflared"], check=True)\n\n# تشغيل الخادم\nuvicorn_proc = subprocess.Popen(["uvicorn", "colab_server:app", "--host", "0.0.0.0", "--port", "8000"], stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)\nprint("⏳ جاري تشغيل الخادم...")\ntime.sleep(15)\n\n# تشغيل النفق\ncf_proc = subprocess.Popen(["./cloudflared", "tunnel", "--url", "http://localhost:8000"], stderr=subprocess.PIPE, text=True)\n\nfor line in cf_proc.stderr:\n    match = re.search(r'https://[a-z0-9\\-]+\\.trycloudflare\\.com', line)\n    if match:\n        print(f"\\n✅ الرابط العام جاهز:\\n🌐 {match.group(0)}\\n")\n        break\n\nfor line in uvicorn_proc.stdout: print(line, end="")`
+            `# 1. إعداد المشروع وتشغيل خادم CTC\n!rm -rf colabwis\n!git clone https://github.com/alinice1998/colabwis.git\n%cd colabwis\n\n!apt-get install -y ffmpeg\n!pip uninstall -y numpy ctc-segmentation\n!pip install rapidfuzz ctc-segmentation\n!pip install -r requirements.txt\n!pip install git+https://github.com/m-bain/whisperx.git\n!pip install "numpy<2" --force-reinstall\n!python model_downloader.py\n\nimport subprocess, threading, time, re, os\n\n# تحميل cloudflared\nif not os.path.exists("cloudflared"):\n    subprocess.run(["curl", "-sL", "https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64", "-o", "cloudflared"], check=True)\n    subprocess.run(["chmod", "+x", "cloudflared"], check=True)\n\n# تشغيل الخادم\nuvicorn_proc = subprocess.Popen(["uvicorn", "colab_server:app", "--host", "0.0.0.0", "--port", "8000"], stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)\nprint("⏳ جاري تشغيل الخادم...")\ntime.sleep(15)\n\n# تشغيل النفق\ncf_proc = subprocess.Popen(["./cloudflared", "tunnel", "--url", "http://localhost:8000"], stderr=subprocess.PIPE, text=True)\n\nfor line in cf_proc.stderr:\n    match = re.search(r'https://[a-z0-9\\-]+\\.trycloudflare\\.com', line)\n    if match:\n        print(f"\\n✅ الرابط العام جاهز:\\n🌐 {match.group(0)}\\n")\n        break\n\nfor line in uvicorn_proc.stdout: print(line, end="")`
         ],
         whisperx: []
     };
@@ -1313,8 +1539,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function renderColabCells() {
         if (!colabCellsContainer) return;
-        const method = methodSelect.value;
-        const cells = colabCodes[method] || colabCodes.ctc_cloud;
+        const method = methodSelect ? methodSelect.value : 'waqf_backend';
+        const cells = colabCodes[method] || colabCodes.waqf_backend;
         
         colabCellsContainer.innerHTML = '';
         
@@ -1330,7 +1556,7 @@ document.addEventListener('DOMContentLoaded', () => {
             titleSpan.textContent = `الخلية ${idx + 1}`;
             
             const copyBtn = document.createElement('button');
-            copyBtn.className = "text-xs flex items-center gap-1 text-emerald-400 hover:text-emerald-300 transition-colors cursor-pointer";
+            copyBtn.className = "text-xs flex items-center gap-1 text-amber-400 hover:text-amber-300 transition-colors cursor-pointer";
             copyBtn.innerHTML = `<i data-lucide="copy" class="w-3 h-3"></i> نسخ الكود`;
             
             copyBtn.onclick = () => {
@@ -1371,7 +1597,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (methodSelect) {
         methodSelect.addEventListener('change', renderColabCells);
-        // Initial render
-        renderColabCells();
     }
+    // Initial render
+    renderColabCells();
 });
